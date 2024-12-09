@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Data Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+        }
+        canvas {
+            max-width: 800px;
+            margin: 20px auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sensor Data Dashboard</h1>
+    <div>
+        <canvas id="tempChart"></canvas>
+        <canvas id="humidityChart"></canvas>
+        <canvas id="vocChart"></canvas>
+        <canvas id="co2Chart"></canvas>
+        <canvas id="nh3Chart"></canvas>
+        <canvas id="pressureChart"></canvas>
+    </div>
+
+    <script>
+        // ThingSpeak details
+        const channelID = "2779242"; // Replace with your channel ID
+        const readAPIKey = "2JMH3VCKYXOVILTV"; // Replace with your Read API Key
+        const baseURL = `https://api.thingspeak.com/channels/${channelID}/feeds.json?api_key=${readAPIKey}&results=20`;
+
+        // Fetch data from ThingSpeak
+        async function fetchData() {
+            try {
+                const response = await fetch(baseURL);
+                if (!response.ok) {
+                    console.error("Error: ", response.status, response.statusText);
+                    return;
+                }
+                const data = await response.json();
+                const feeds = data.feeds;
+
+                // Check if feeds are empty
+                if (feeds.length === 0) {
+                    console.warn("No data available in the ThingSpeak channel.");
+                    return;
+                }
+
+                // Extract fields
+                const timestamps = feeds.map(feed => new Date(feed.created_at));
+                const temperature = feeds.map(feed => parseFloat(feed.field4));
+                const humidity = feeds.map(feed => parseFloat(feed.field5));
+                const voc = feeds.map(feed => parseFloat(feed.field3));
+                const co2 = feeds.map(feed => parseFloat(feed.field1));
+                const nh3 = feeds.map(feed => parseFloat(feed.field2));
+                const pressure = feeds.map(feed => parseFloat(feed.field6));
+
+                // Render charts
+                renderChart('tempChart', 'Temperature (°C)', timestamps, temperature, 'rgba(255, 99, 132, 0.2)', 'rgba(255, 99, 132, 1)');
+                renderChart('humidityChart', 'Humidity (%)', timestamps, humidity, 'rgba(54, 162, 235, 0.2)', 'rgba(54, 162, 235, 1)');
+                renderChart('vocChart', 'VOC (ppm)', timestamps, voc, 'rgba(75, 192, 192, 0.2)', 'rgba(75, 192, 192, 1)');
+                renderChart('co2Chart', 'CO2 (ppm)', timestamps, co2, 'rgba(153, 102, 255, 0.2)', 'rgba(153, 102, 255, 1)');
+                renderChart('nh3Chart', 'NH3 (ppm)', timestamps, nh3, 'rgba(255, 159, 64, 0.2)', 'rgba(255, 159, 64, 1)');
+                renderChart('pressureChart', 'Pressure (Pa)', timestamps, pressure, 'rgba(255, 205, 86, 0.2)', 'rgba(255, 205, 86, 1)');
+            } catch (error) {
+                console.error("Error fetching data: ", error);
+            }
+        }
+
+        // Render a chart
+        function renderChart(canvasID, label, labels, data, bgColor, borderColor) {
+            const ctx = document.getElementById(canvasID).getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: label,
+                        data: data,
+                        backgroundColor: bgColor,
+                        borderColor: borderColor,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            type: 'time', // Enable time axis
+                            time: {
+                                unit: 'minute',
+                                displayFormats: {
+                                    minute: 'HH:mm'
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Load data on page load
+        fetchData();
+    </script>
+</body>
+</html>
