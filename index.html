@@ -56,7 +56,7 @@
         };
 
         // Store chart instances to update them dynamically
-        let tempChart, humidityChart, vocChart, co2Chart, nh3Chart, pressureChart;
+        let charts = {};
 
         // Fetch data from ThingSpeak
         async function fetchData() {
@@ -69,45 +69,41 @@
                 const data = await response.json();
                 const feeds = data.feeds;
 
-                // Check if feeds are empty
                 if (feeds.length === 0) {
                     console.warn("No data available in the ThingSpeak channel.");
                     return;
                 }
 
-                // Extract fields
                 const timestamps = feeds.map(feed => new Date(feed.created_at));
-                const temperature = feeds.map(feed => parseFloat(feed.field4));
-                const humidity = feeds.map(feed => parseFloat(feed.field5));
-                const voc = feeds.map(feed => parseFloat(feed.field3));
-                const co2 = feeds.map(feed => parseFloat(feed.field1));
-                const nh3 = feeds.map(feed => parseFloat(feed.field2));
-                const pressure = feeds.map(feed => parseFloat(feed.field6));
+                const fields = {
+                    temperature: feeds.map(feed => parseFloat(feed.field4)),
+                    humidity: feeds.map(feed => parseFloat(feed.field5)),
+                    voc: feeds.map(feed => parseFloat(feed.field3)),
+                    co2: feeds.map(feed => parseFloat(feed.field1)),
+                    nh3: feeds.map(feed => parseFloat(feed.field2)),
+                    pressure: feeds.map(feed => parseFloat(feed.field6))
+                };
 
-                // Check for alerts
-                checkAlerts({ NH3: nh3[nh3.length - 1], CO2: co2[co2.length - 1] });
+                checkAlerts({ NH3: fields.nh3[fields.nh3.length - 1], CO2: fields.co2[fields.co2.length - 1] });
 
-                // Update charts with new data
-                updateChart(tempChart, timestamps, temperature);
-                updateChart(humidityChart, timestamps, humidity);
-                updateChart(vocChart, timestamps, voc);
-                updateChart(co2Chart, timestamps, co2);
-                updateChart(nh3Chart, timestamps, nh3);
-                updateChart(pressureChart, timestamps, pressure);
+                updateChart(charts.tempChart, timestamps, fields.temperature);
+                updateChart(charts.humidityChart, timestamps, fields.humidity);
+                updateChart(charts.vocChart, timestamps, fields.voc);
+                updateChart(charts.co2Chart, timestamps, fields.co2);
+                updateChart(charts.nh3Chart, timestamps, fields.nh3);
+                updateChart(charts.pressureChart, timestamps, fields.pressure);
 
             } catch (error) {
                 console.error("Error fetching data: ", error);
             }
         }
 
-        // Update chart data dynamically
         function updateChart(chart, labels, data) {
             chart.data.labels = labels;
             chart.data.datasets[0].data = data;
-            chart.update();  // Update the chart to reflect new data
+            chart.update();
         }
 
-        // Check if there are any alerts based on thresholds
         function checkAlerts(latestData) {
             const alerts = [];
             if (latestData.NH3 < thresholds.NH3.low) {
@@ -121,7 +117,6 @@
                 alerts.push("CO₂ levels are too high! (> 1000 ppm)");
             }
 
-            // Display alerts
             const alertsDiv = document.getElementById('alerts');
             if (alerts.length > 0) {
                 alertsDiv.innerHTML = `<strong>Alerts:</strong><br>${alerts.join("<br>")}`;
@@ -131,16 +126,15 @@
             }
         }
 
-        // Render a chart
-        function renderChart(canvasID, label, labels, data, bgColor, borderColor) {
+        function renderChart(canvasID, label, bgColor, borderColor) {
             const ctx = document.getElementById(canvasID).getContext('2d');
             return new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels: [],
                     datasets: [{
                         label: label,
-                        data: data,
+                        data: [],
                         backgroundColor: bgColor,
                         borderColor: borderColor,
                         borderWidth: 1
@@ -151,38 +145,24 @@
                     scales: {
                         x: {
                             type: 'time',
-                            time: {
-                                unit: 'minute',
-                                displayFormats: {
-                                    minute: 'HH:mm'
-                                }
-                            }
+                            time: { unit: 'minute', displayFormats: { minute: 'HH:mm' } }
                         },
-                        y: {
-                            beginAtZero: false
-                        }
+                        y: { beginAtZero: false }
                     },
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        }
-                    }
+                    plugins: { legend: { display: true, position: 'top' } }
                 }
             });
         }
 
-        // Initialize charts
         function initializeCharts() {
-            tempChart = renderChart('tempChart', 'Temperature (°C)', [], [], 'rgba(255, 99, 132, 0.2)', 'rgba(255, 99, 132, 1)');
-            humidityChart = renderChart('humidityChart', 'Humidity (%)', [], [], 'rgba(54, 162, 235, 0.2)', 'rgba(54, 162, 235, 1)');
-            vocChart = renderChart('vocChart', 'VOC (ppm)', [], [], 'rgba(75, 192, 192, 0.2)', 'rgba(75, 192, 192, 1)');
-            co2Chart = renderChart('co2Chart', 'CO2 (ppm)', [], [], 'rgba(153, 102, 255, 0.2)', 'rgba(153, 102, 255, 1)');
-            nh3Chart = renderChart('nh3Chart', 'NH3 (ppm)', [], [], 'rgba(255, 159, 64, 0.2)', 'rgba(255, 159, 64, 1)');
-            pressureChart = renderChart('pressureChart', 'Pressure (Pa)', [], [], 'rgba(255, 205, 86, 0.2)', 'rgba(255, 205, 86, 1)');
+            charts.tempChart = renderChart('tempChart', 'Temperature (°C)', 'rgba(255, 99, 132, 0.2)', 'rgba(255, 99, 132, 1)');
+            charts.humidityChart = renderChart('humidityChart', 'Humidity (%)', 'rgba(54, 162, 235, 0.2)', 'rgba(54, 162, 235, 1)');
+            charts.vocChart = renderChart('vocChart', 'VOC (ppm)', 'rgba(75, 192, 192, 0.2)', 'rgba(75, 192, 192, 1)');
+            charts.co2Chart = renderChart('co2Chart', 'CO2 (ppm)', 'rgba(153, 102, 255, 0.2)', 'rgba(153, 102, 255, 1)');
+            charts.nh3Chart = renderChart('nh3Chart', 'NH3 (ppm)', 'rgba(255, 159, 64, 0.2)', 'rgba(255, 159, 64, 1)');
+            charts.pressureChart = renderChart('pressureChart', 'Pressure (Pa)', 'rgba(255, 205, 86, 0.2)', 'rgba(255, 205, 86, 1)');
         }
 
-        // Load data on page load and initialize charts
         initializeCharts();
         fetchData();
         setInterval(fetchData, 10000); // Refresh data every 10 seconds
