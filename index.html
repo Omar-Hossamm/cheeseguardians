@@ -19,10 +19,21 @@
             max-width: 800px;
             margin: 20px auto;
         }
+        #alerts {
+            margin: 20px auto;
+            padding: 10px;
+            max-width: 800px;
+            text-align: left;
+            background-color: #ffe0e0;
+            color: #a00;
+            border: 1px solid #a00;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <h1>Sensor Data Dashboard</h1>
+    <div id="alerts"></div>
     <div>
         <canvas id="tempChart"></canvas>
         <canvas id="humidityChart"></canvas>
@@ -37,6 +48,12 @@
         const channelID = "2779434"; // Replace with your channel ID
         const readAPIKey = "I36VHKFL0XTH859C"; // Replace with your Read API Key
         const baseURL = `https://api.thingspeak.com/channels/${channelID}/feeds.json?api_key=${readAPIKey}&results=20`;
+
+        // Threshold values
+        const thresholds = {
+            NH3: { low: 18, high: 45 },
+            CO2: { low: 600, high: 1000 }
+        };
 
         // Fetch data from ThingSpeak
         async function fetchData() {
@@ -64,6 +81,9 @@
                 const nh3 = feeds.map(feed => parseFloat(feed.field2));
                 const pressure = feeds.map(feed => parseFloat(feed.field6));
 
+                // Check for alerts
+                checkAlerts({ NH3: nh3[nh3.length - 1], CO2: co2[co2.length - 1] });
+
                 // Render charts
                 renderChart('tempChart', 'Temperature (°C)', timestamps, temperature, 'rgba(255, 99, 132, 0.2)', 'rgba(255, 99, 132, 1)');
                 renderChart('humidityChart', 'Humidity (%)', timestamps, humidity, 'rgba(54, 162, 235, 0.2)', 'rgba(54, 162, 235, 1)');
@@ -76,53 +96,74 @@
             }
         }
 
+        // Check if there are any alerts based on thresholds
+        function checkAlerts(latestData) {
+            const alerts = [];
+            if (latestData.NH3 < thresholds.NH3.low) {
+                alerts.push("NH₃ levels are too low! (< 18 ppm)");
+            } else if (latestData.NH3 > thresholds.NH3.high) {
+                alerts.push("NH₃ levels are too high! (> 45 ppm)");
+            }
+            if (latestData.CO2 < thresholds.CO2.low) {
+                alerts.push("CO₂ levels are too low! (< 600 ppm)");
+            } else if (latestData.CO2 > thresholds.CO2.high) {
+                alerts.push("CO₂ levels are too high! (> 1000 ppm)");
+            }
+
+            // Display alerts
+            const alertsDiv = document.getElementById('alerts');
+            if (alerts.length > 0) {
+                alertsDiv.innerHTML = `<strong>Alerts:</strong><br>${alerts.join("<br>")}`;
+                alertsDiv.style.display = "block";
+            } else {
+                alertsDiv.style.display = "none";
+            }
+        }
+
         // Render a chart
         function renderChart(canvasID, label, labels, data, bgColor, borderColor) {
-    const ctx = document.getElementById(canvasID).getContext('2d');
-
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: label,
-                data: data,
-                backgroundColor: bgColor,
-                borderColor: borderColor,
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                x: {
-                    type: 'time',
-                    time: {
-                        unit: 'minute',
-                        displayFormats: {
-                            minute: 'HH:mm'
+            const ctx = document.getElementById(canvasID).getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: label,
+                        data: data,
+                        backgroundColor: bgColor,
+                        borderColor: borderColor,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'minute',
+                                displayFormats: {
+                                    minute: 'HH:mm'
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: false
                         }
                     },
-                },
-                y: {
-                    beginAtZero: false, // Allow the scale to dynamically adjust without forcing it to start at 0
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    }
                 }
-            },
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'top',
-                },
-            },
+            });
         }
-    });
-}
-
-
-
 
         // Load data on page load
         fetchData();
+        setInterval(fetchData, 10000); // Refresh data every 10 seconds
     </script>
 </body>
 </html>
