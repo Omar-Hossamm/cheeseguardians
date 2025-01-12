@@ -55,6 +55,9 @@
             CO2: { low: 600, high: 1000 }
         };
 
+        // Store chart instances to update them dynamically
+        let tempChart, humidityChart, vocChart, co2Chart, nh3Chart, pressureChart;
+
         // Fetch data from ThingSpeak
         async function fetchData() {
             try {
@@ -84,16 +87,24 @@
                 // Check for alerts
                 checkAlerts({ NH3: nh3[nh3.length - 1], CO2: co2[co2.length - 1] });
 
-                // Render charts
-                renderChart('tempChart', 'Temperature (°C)', timestamps, temperature, 'rgba(255, 99, 132, 0.2)', 'rgba(255, 99, 132, 1)');
-                renderChart('humidityChart', 'Humidity (%)', timestamps, humidity, 'rgba(54, 162, 235, 0.2)', 'rgba(54, 162, 235, 1)');
-                renderChart('vocChart', 'VOC (ppm)', timestamps, voc, 'rgba(75, 192, 192, 0.2)', 'rgba(75, 192, 192, 1)');
-                renderChart('co2Chart', 'CO2 (ppm)', timestamps, co2, 'rgba(153, 102, 255, 0.2)', 'rgba(153, 102, 255, 1)');
-                renderChart('nh3Chart', 'NH3 (ppm)', timestamps, nh3, 'rgba(255, 159, 64, 0.2)', 'rgba(255, 159, 64, 1)');
-                renderChart('pressureChart', 'Pressure (Pa)', timestamps, pressure, 'rgba(255, 205, 86, 0.2)', 'rgba(255, 205, 86, 1)');
+                // Update charts with new data
+                updateChart(tempChart, timestamps, temperature);
+                updateChart(humidityChart, timestamps, humidity);
+                updateChart(vocChart, timestamps, voc);
+                updateChart(co2Chart, timestamps, co2);
+                updateChart(nh3Chart, timestamps, nh3);
+                updateChart(pressureChart, timestamps, pressure);
+
             } catch (error) {
                 console.error("Error fetching data: ", error);
             }
+        }
+
+        // Update chart data dynamically
+        function updateChart(chart, labels, data) {
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = data;
+            chart.update();  // Update the chart to reflect new data
         }
 
         // Check if there are any alerts based on thresholds
@@ -123,7 +134,7 @@
         // Render a chart
         function renderChart(canvasID, label, labels, data, bgColor, borderColor) {
             const ctx = document.getElementById(canvasID).getContext('2d');
-            new Chart(ctx, {
+            return new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
@@ -161,9 +172,20 @@
             });
         }
 
-        // Load data on page load and automatically refresh every 10 seconds
+        // Initialize charts
+        function initializeCharts() {
+            tempChart = renderChart('tempChart', 'Temperature (°C)', [], [], 'rgba(255, 99, 132, 0.2)', 'rgba(255, 99, 132, 1)');
+            humidityChart = renderChart('humidityChart', 'Humidity (%)', [], [], 'rgba(54, 162, 235, 0.2)', 'rgba(54, 162, 235, 1)');
+            vocChart = renderChart('vocChart', 'VOC (ppm)', [], [], 'rgba(75, 192, 192, 0.2)', 'rgba(75, 192, 192, 1)');
+            co2Chart = renderChart('co2Chart', 'CO2 (ppm)', [], [], 'rgba(153, 102, 255, 0.2)', 'rgba(153, 102, 255, 1)');
+            nh3Chart = renderChart('nh3Chart', 'NH3 (ppm)', [], [], 'rgba(255, 159, 64, 0.2)', 'rgba(255, 159, 64, 1)');
+            pressureChart = renderChart('pressureChart', 'Pressure (Pa)', [], [], 'rgba(255, 205, 86, 0.2)', 'rgba(255, 205, 86, 1)');
+        }
+
+        // Load data on page load and initialize charts
+        initializeCharts();
         fetchData();
-        setInterval(fetchData, 1000); // Refresh data every 1 seconds
+        setInterval(fetchData, 10000); // Refresh data every 10 seconds
     </script>
 </body>
 </html>
